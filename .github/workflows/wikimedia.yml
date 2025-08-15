@@ -63,7 +63,7 @@ jobs:
     outputs:
       events-json: ${{ steps.get-json.outputs.events }}
     steps:
-      - name: Preparar variables
+      - name: Enviar variables request
         id: vars
         env:
           LANG: ${{ vars.LANG }}
@@ -86,7 +86,7 @@ jobs:
           path: wiki.json
           key: ${{ runner.os }}-${{ env.cache-name }}-${{ env.HASH }}
 
-      - name: Llamar API de Wikimedia si no hay cache
+      - name: Llamar API de wikimedia si no hay cache
         if: ${{ steps.cache-json.outputs.cache-hit != 'true' }}
         run: |
           echo "Consultando Wikimedia para $DIA/$MES en idioma $LANG..."
@@ -94,10 +94,10 @@ jobs:
             --header "User-Agent: GitHubActions-Efemerides/1.0" \
             | jq . > wiki.json
 
-      - name: Extraer eventos como array JSON
+      - name: Extraer eventos en paralelo
         id: get-json
         run: |
-          EVENTS=$(jq -c '.selected' wiki.json)
+          EVENTS=$(jq -c '.selected[]' wiki.json)
           echo "events=$EVENTS" >> $GITHUB_OUTPUT
 
   generar-pdfs:
@@ -110,18 +110,14 @@ jobs:
       - name: Crear carpeta para PDFs
         run: mkdir -p pdfs
 
-      - name: Generar nombre de PDF
-        id: filename
-        run: |
-          TITLE=$(echo "${{ matrix.event[0].title }}" | tr ' ' '_' | tr -d '/')
-          FILENAME="${{ github.event.inputs.mes }}-${{ github.event.inputs.dia }}-${TITLE}.pdf"
-          echo "FILENAME=$FILENAME" >> $GITHUB_ENV
+      - name: Descargar página HTML
+        run: curl -L "${{ matrix.event.pages[0].content_urls.desktop.page }}" -o temp.html
 
       - name: Convertir HTML a PDF
         uses: fifsky/html-to-pdf-action@master
         with:
-          url: ${{ matrix.event[0].pages[0].content_urls.desktop.page }}
-          output: pdfs/${{ env.FILENAME }}
+          htmlFile: temp.html
+          outputFile: pdfs/${{ github.event.inputs.mes }}-${{ github.event.inputs.dia }}-${{ matrix.event.pages[0].title | replace(' ', '_') }}.pdf
 
       - name: Subir PDFs como artefactos
         uses: actions/upload-artifact@v4
