@@ -65,12 +65,10 @@ jobs:
     steps:
       - name: Enviar variables request
         id: vars
-        env:
-          LANG: ${{ vars.LANG }}
         run: |
           MES="${{ github.event.inputs.mes }}"
           DIA="${{ github.event.inputs.dia }}"
-          LANG="${LANG}"
+          LANG="${{ vars.LANG }}"
           echo "MES=$MES" >> $GITHUB_ENV
           echo "DIA=$DIA" >> $GITHUB_ENV
           echo "LANG=$LANG" >> $GITHUB_ENV
@@ -90,14 +88,14 @@ jobs:
         if: ${{ steps.cache-json.outputs.cache-hit != 'true' }}
         run: |
           echo "Consultando Wikimedia para $DIA/$MES en idioma $LANG..."
-          curl --location "https://api.wikimedia.org/feed/v1/wikipedia/${LANG}/onthisday/all/${MES}/${DIA}" \
+          curl -L "https://api.wikimedia.org/feed/v1/wikipedia/${LANG}/onthisday/all/${MES}/${DIA}" \
             --header "User-Agent: GitHubActions-Efemerides/1.0" \
             | jq . > wiki.json
 
       - name: Extraer eventos en paralelo
         id: get-json
         run: |
-          EVENTS=$(jq -c '.selected[]' wiki.json)
+          EVENTS=$(jq -c '.selected[]' wiki.json | jq -s '.')
           echo "events=$EVENTS" >> $GITHUB_OUTPUT
 
   generar-pdfs:
