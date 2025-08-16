@@ -118,12 +118,15 @@ jobs:
           path: ${{ env.PDF_NAME }}
           key: pdf-${{ env.PDF_NAME }}
 
-      - name: Generar PDF si no existe
+      - name: Descargar página HTML
+        run: curl -L "${{ matrix.page.url }}" -o page.html
+
+      - name: Generar PDF desde HTML
         if: ${{ steps.cache-pdf.outputs.cache-hit != 'true' }}
         uses: fifsky/html-to-pdf-action@master
         with:
-          url: ${{ matrix.page.url }}
-          output: ${{ env.PDF_NAME }}
+          htmlFile: page.html
+          outputFile: ${{ env.PDF_NAME }}
 
       - name: Subir PDF como artefacto
         uses: actions/upload-artifact@v4
