@@ -83,9 +83,7 @@ jobs:
       - name: Llamar API de Wikimedia si no hay cache
         if: ${{ steps.cache-json.outputs.cache-hit != 'true' }}
         run: |
-          set -e
-          echo "Descargando eventos de Wikimedia..."
-          curl -f -L "https://api.wikimedia.org/feed/v1/wikipedia/${LANG}/onthisday/all/${MES}/${DIA}" \
+          curl --location "https://api.wikimedia.org/feed/v1/wikipedia/${LANG}/onthisday/all/${MES}/${DIA}" \
             --header "User-Agent: GitHubActions-Efemerides/1.0" \
             | jq . > wiki.json
 
