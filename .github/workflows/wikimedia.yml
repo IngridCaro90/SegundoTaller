@@ -103,7 +103,10 @@ jobs:
         page: ${{ fromJson(needs.consultar-wikimedia.outputs.events-json) }}
     steps:
       - name: Guardar nombre de PDF
-        run: echo "PDF_NAME=${{ github.event.inputs.mes }}-${{ github.event.inputs.dia }}-${{ matrix.page.title }}.pdf" >> $GITHUB_ENV
+        run: |
+          SAFE_TITLE=$(echo "${{ matrix.page.title }}" | tr ' ' '_')
+          PDF_NAME="${{ github.event.inputs.mes }}-${{ github.event.inputs.dia }}-${SAFE_TITLE}.pdf"
+          echo "PDF_NAME=$PDF_NAME" >> $GITHUB_ENV
 
       - name: Cache PDF generado
         id: cache-pdf
@@ -125,5 +128,5 @@ jobs:
       - name: Subir PDF como artefacto
         uses: actions/upload-artifact@v4
         with:
-          name: pdf-${{ env.PDF_NAME }}
+          name: ${{ env.PDF_NAME }}
           path: ${{ env.PDF_NAME }}
