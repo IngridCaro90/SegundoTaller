@@ -95,12 +95,6 @@ jobs:
           EVENTS=$(cat events.json)
           echo "events=$EVENTS" >> $GITHUB_OUTPUT
 
-      - name: Subir JSON como artefacto
-        uses: actions/upload-artifact@v4
-        with:
-          name: wiki-${{ github.event.inputs.dia }}-${{ github.event.inputs.mes }}-${{ vars.LANG }}
-          path: wiki.json
-
   generar-pdfs:
     needs: consultar-wikimedia
     runs-on: ubuntu-latest
