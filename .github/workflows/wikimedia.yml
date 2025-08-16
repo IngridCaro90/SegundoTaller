@@ -83,7 +83,9 @@ jobs:
       - name: Llamar API de Wikimedia si no hay cache
         if: ${{ steps.cache-json.outputs.cache-hit != 'true' }}
         run: |
-          curl --location "https://api.wikimedia.org/feed/v1/wikipedia/${LANG}/onthisday/all/${MES}/${DIA}" \
+          set -e
+          echo "Descargando eventos de Wikimedia..."
+          curl -f -L "https://api.wikimedia.org/feed/v1/wikipedia/${LANG}/onthisday/all/${MES}/${DIA}" \
             --header "User-Agent: GitHubActions-Efemerides/1.0" \
             | jq . > wiki.json
 
@@ -107,6 +109,7 @@ jobs:
           SAFE_TITLE=$(echo "${{ matrix.page.title }}" | tr ' ' '_')
           PDF_NAME="${{ github.event.inputs.mes }}-${{ github.event.inputs.dia }}-${SAFE_TITLE}.pdf"
           echo "PDF_NAME=$PDF_NAME" >> $GITHUB_ENV
+          continue-on-error: true
 
       - name: Cache PDF generado
         id: cache-pdf
@@ -114,9 +117,11 @@ jobs:
         with:
           path: ${{ env.PDF_NAME }}
           key: pdf-${{ env.PDF_NAME }}
+          continue-on-error: true
 
       - name: Descargar página HTML
         run: curl -L "${{ matrix.page.url }}" -o page.html
+        continue-on-error: true
 
       - name: Generar PDF desde HTML
         if: ${{ steps.cache-pdf.outputs.cache-hit != 'true' }}
@@ -124,9 +129,12 @@ jobs:
         with:
           htmlFile: page.html
           outputFile: ${{ env.PDF_NAME }}
+          continue-on-error: true
 
       - name: Subir PDF como artefacto
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.PDF_NAME }}
           path: ${{ env.PDF_NAME }}
+          retention-days: 1
+          continue-on-error: true
