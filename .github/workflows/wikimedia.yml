@@ -117,11 +117,15 @@ jobs:
           FILENAME="${{ github.event.inputs.mes }}-${{ github.event.inputs.dia }}-${TITLE}.pdf"
           echo "FILENAME=$FILENAME" >> $GITHUB_ENV
 
+      - name: Descargar página HTML
+        run: |
+          curl -L "${{ matrix.event[0].pages[0].content_urls.desktop.page }}" -o temp.html
+
       - name: Convertir HTML a PDF
         uses: fifsky/html-to-pdf-action@master
         with:
-          url: ${{ matrix.event[0].pages[0].content_urls.desktop.page }}
-          output: pdfs/${{ env.FILENAME }}
+          htmlFile: temp.html
+          outputFile: pdfs/${{ env.FILENAME }}
 
       - name: Subir PDFs como artefactos
         uses: actions/upload-artifact@v4
