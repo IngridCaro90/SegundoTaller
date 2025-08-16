@@ -97,7 +97,7 @@ jobs:
       - name: Extraer eventos como array JSON
         id: get-json
         run: |
-          EVENTS=$(jq -c '.selected' wiki.json)
+          EVENTS=$(jq -c '.selected[].pages[]' wiki.json)
           echo "events=$EVENTS" >> $GITHUB_OUTPUT
 
   generar-pdfs:
@@ -105,30 +105,16 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        event: ${{ fromJson(needs.consultar-wikimedia.outputs.events-json) }}
+        page: ${{ fromJson(needs.consultar-wikimedia.outputs.events-json) }}
     steps:
-      - name: Crear carpeta para PDFs
-        run: mkdir -p pdfs
-
-      - name: Generar nombre de PDF
-        id: filename
-        run: |
-          TITLE=$(echo "${{ matrix.event[0].title }}" | tr ' ' '_' | tr -d '/')
-          FILENAME="${{ github.event.inputs.mes }}-${{ github.event.inputs.dia }}-${TITLE}.pdf"
-          echo "FILENAME=$FILENAME" >> $GITHUB_ENV
-
-      - name: Descargar página HTML
-        run: |
-          curl -L "${{ matrix.event[0].pages[0].content_urls.desktop.page }}" -o temp.html
-
-      - name: Convertir HTML a PDF
+      - name: Generar PDF de cada evento
         uses: fifsky/html-to-pdf-action@master
         with:
-          htmlFile: temp.html
-          outputFile: pdfs/${{ env.FILENAME }}
+          url: ${{ matrix.page.content_urls.desktop.page }}
+          output: "${{ github.event.inputs.mes }}-${{ github.event.inputs.dia }}-${{ matrix.page.title }}.pdf"
 
-      - name: Subir PDFs como artefactos
+      - name: Subir PDF como artefacto
         uses: actions/upload-artifact@v4
         with:
-          name: pdfs-${{ github.event.inputs.mes }}-${{ github.event.inputs.dia }}
-          path: pdfs/
+          name: pdf-${{ github.event.inputs.mes }}-${{ github.event.inputs.dia }}-${{ matrix.page.title }}
+          path: "${{ github.event.inputs.mes }}-${{ github.event.inputs.dia }}-${{ matrix.page.title }}.pdf"
