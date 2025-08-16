@@ -65,40 +65,41 @@ jobs:
     steps:
       - name: Preparar variables
         id: vars
-        env:
-          LANG: ${{ vars.LANG }}
         run: |
           MES="${{ github.event.inputs.mes }}"
           DIA="${{ github.event.inputs.dia }}"
-          LANG="${LANG}"
+          LANG="${{ vars.LANG }}"
           echo "MES=$MES" >> $GITHUB_ENV
           echo "DIA=$DIA" >> $GITHUB_ENV
           echo "LANG=$LANG" >> $GITHUB_ENV
-          HASH=$(echo -n "${LANG}-${MES}-${DIA}" | sha256sum | cut -d ' ' -f1)
-          echo "HASH=$HASH" >> $GITHUB_ENV
 
-      - name: Guardar en cache la respuesta de API
+      - name: Guardar cache de la API
         id: cache-json
         uses: actions/cache@v4
-        env:
-          cache-name: wikimedia-json
         with:
           path: wiki.json
-          key: ${{ runner.os }}-${{ env.cache-name }}-${{ env.HASH }}
+          key: wiki-${{ github.event.inputs.mes }}-${{ github.event.inputs.dia }}-${{ vars.LANG }}
 
       - name: Llamar API de Wikimedia si no hay cache
         if: ${{ steps.cache-json.outputs.cache-hit != 'true' }}
         run: |
-          echo "Consultando Wikimedia para $DIA/$MES en idioma $LANG..."
           curl --location "https://api.wikimedia.org/feed/v1/wikipedia/${LANG}/onthisday/all/${MES}/${DIA}" \
             --header "User-Agent: GitHubActions-Efemerides/1.0" \
             | jq . > wiki.json
 
-      - name: Extraer eventos como array JSON
+      - name: Extraer eventos para matrix
         id: get-json
         run: |
-          EVENTS=$(jq -c '.selected[].pages[]' wiki.json)
+          jq -c '[.selected[] | {title: .pages[0].title, url: .pages[0].content_urls.desktop.page}]' wiki.json \
+            > events.json
+          EVENTS=$(cat events.json)
           echo "events=$EVENTS" >> $GITHUB_OUTPUT
+
+      - name: Subir JSON como artefacto
+        uses: actions/upload-artifact@v4
+        with:
+          name: wiki-${{ github.event.inputs.dia }}-${{ github.event.inputs.mes }}-${{ vars.LANG }}
+          path: wiki.json
 
   generar-pdfs:
     needs: consultar-wikimedia
@@ -107,14 +108,25 @@ jobs:
       matrix:
         page: ${{ fromJson(needs.consultar-wikimedia.outputs.events-json) }}
     steps:
-      - name: Generar PDF de cada evento
+      - name: Guardar nombre de PDF
+        run: echo "PDF_NAME=${{ github.event.inputs.mes }}-${{ github.event.inputs.dia }}-${{ matrix.page.title }}.pdf" >> $GITHUB_ENV
+
+      - name: Cache PDF generado
+        id: cache-pdf
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.PDF_NAME }}
+          key: pdf-${{ env.PDF_NAME }}
+
+      - name: Generar PDF si no existe
+        if: ${{ steps.cache-pdf.outputs.cache-hit != 'true' }}
         uses: fifsky/html-to-pdf-action@master
         with:
-          url: ${{ matrix.page.content_urls.desktop.page }}
-          output: "${{ github.event.inputs.mes }}-${{ github.event.inputs.dia }}-${{ matrix.page.title }}.pdf"
+          url: ${{ matrix.page.url }}
+          output: ${{ env.PDF_NAME }}
 
       - name: Subir PDF como artefacto
         uses: actions/upload-artifact@v4
         with:
-          name: pdf-${{ github.event.inputs.mes }}-${{ github.event.inputs.dia }}-${{ matrix.page.title }}
-          path: "${{ github.event.inputs.mes }}-${{ github.event.inputs.dia }}-${{ matrix.page.title }}.pdf"
+          name: pdf-${{ env.PDF_NAME }}
+          path: ${{ env.PDF_NAME }}
