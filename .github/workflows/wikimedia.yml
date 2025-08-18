@@ -58,13 +58,18 @@ jobs:
       - name: Extraer eventos para matrix
         id: get-json
         run: |
-          jq -c '[.selected[] | {title: .pages[0].title, url: .pages[0].content_urls.desktop.page}]' wiki.json \
-            > events.json
+          if [ -s wiki.json ]; then
+          jq -c '[.selected[]? | {title: .pages[0].title, url: .pages[0].content_urls.desktop.page}]' 
+          wiki.json > events.json
+          else
+            echo "[]" > events.json
+          fi
           EVENTS=$(cat events.json)
           echo "events=$EVENTS" >> $GITHUB_OUTPUT
 
   generar-pdfs:
     needs: consultar-wikimedia
+    if: ${{ needs.consultar-wikimedia.outputs.events-json != '[]' }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
