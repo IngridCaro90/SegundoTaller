@@ -68,7 +68,7 @@ jobs:
           if [ -s wiki.json ]; then
             COUNT=$(jq '.selected | length' wiki.json)
             if [ "$COUNT" -eq 0 ]; then
-              echo "⚠ No se encontraron eventos para la fecha ${DIA}/${MES}."
+              echo "No se encontraron eventos para la fecha ${DIA}/${MES}."
               echo "events=[]" >> $GITHUB_OUTPUT
             else
               jq -c '[.selected[] | {title: .pages[0].title, url: .pages[0].content_urls.desktop.page}]' wiki.json > events.json
