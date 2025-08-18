@@ -70,6 +70,7 @@ jobs:
     needs: consultar-wikimedia
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         page: ${{ fromJson(needs.consultar-wikimedia.outputs.events-json) }}
     steps:
