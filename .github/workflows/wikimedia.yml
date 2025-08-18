@@ -51,9 +51,16 @@ jobs:
         if: ${{ steps.cache-json.outputs.cache-hit != 'true' }}
         run: |
           echo "Descargando evento de wikimedia..."
-          curl -sL "https://api.wikimedia.org/feed/v1/wikipedia/${LANG}/onthisday/all/${MES}/${DIA}" \
-            --header "User-Agent: GitHubActions-Efemerides/1.0" \
-            | jq . > wiki.json
+          STATUS=$(curl -sL -w "%{http_code}" -o wiki.json.tmp \
+            "https://api.wikimedia.org/feed/v1/wikipedia/${LANG}/onthisday/all/${MES}/${DIA}" \
+            --header "User-Agent: GitHubActions-Efemerides/1.0")
+
+          if [ "$STATUS" -eq 200 ]; then
+            mv wiki.json.tmp wiki.json
+          else
+            echo "Error en API (HTTP $STATUS). No se encontraron eventos."
+            echo "[]" > wiki.json
+          fi
 
       - name: Extraer eventos para matrix
         id: get-json
