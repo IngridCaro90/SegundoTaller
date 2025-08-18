@@ -50,7 +50,7 @@ jobs:
       - name: Llamar API de Wikimedia si no hay cache
         if: ${{ steps.cache-json.outputs.cache-hit != 'true' }}
         run: |
-          echo "Descargando evento de wikimedia..."
+          echo "Consultando API wikimedia..."
           STATUS=$(curl -sL -w "%{http_code}" -o wiki.json.tmp \
             "https://api.wikimedia.org/feed/v1/wikipedia/${LANG}/onthisday/all/${MES}/${DIA}" \
             --header "User-Agent: GitHubActions-Efemerides/1.0")
@@ -66,16 +66,25 @@ jobs:
         id: get-json
         run: |
           if [ -s wiki.json ]; then
-            jq -c '[.selected[] | {title: .pages[0].title, url: .pages[0].content_urls.desktop.page}]' wiki.json > events.json
-            EVENTS=$(cat events.json)
-            echo "events=$EVENTS" >> $GITHUB_OUTPUT
+            COUNT=$(jq '.selected | length' wiki.json)
+            if [ "$COUNT" -eq 0 ]; then
+              echo "⚠ No se encontraron eventos para la fecha ${DIA}/${MES}."
+              echo "events=[]" >> $GITHUB_OUTPUT
+            else
+              jq -c '[.selected[] | {title: .pages[0].title, url: .pages[0].content_urls.desktop.page}]' wiki.json > events.json
+              EVENTS=$(cat events.json)
+              echo "Se encontraron $COUNT eventos."
+              echo "events=$EVENTS" >> $GITHUB_OUTPUT
+            fi
           else
+            echo "wiki.json vacío. No se pudieron extraer eventos."
             echo "events=[]" >> $GITHUB_OUTPUT
           fi
 
   generar-pdfs:
     needs: consultar-wikimedia
     runs-on: ubuntu-latest
+    if: ${{ needs.consultar-wikimedia.outputs.events-json != '[]' }}
     strategy:
       fail-fast: false
       matrix:
